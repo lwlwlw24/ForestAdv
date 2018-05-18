@@ -41,11 +41,14 @@ type ButtonType
 	sprID as integer
 endtype
 
+
 global game as GameType
 global dim animals[3] as AnimalType
 global dim button[3] as ButtonType
 global humanHealthBar as HealthBarType
 global animalHealthBar as HealthBarType
+
+global fontID as integer
 //****** Named Constants ******
 //debugging use
 #constant DEBUGDELAY = 500
@@ -128,8 +131,8 @@ function InitialiseGameVariables()
 	//test code
 	//init human
 	game.human.level = 1
-	game.human.defence = 1
-	game.human.offence = 2
+	game.human.defence = 2
+	game.human.offence = 3
 	game.human.experience = 0
 	game.human.money = 10
 	game.human.healthMax = 10
@@ -138,8 +141,8 @@ function InitialiseGameVariables()
 	
 	animals[INDEXPIG].defence = 1
 	animals[INDEXPIG].offence = 1
-	animals[INDEXPIG].experience = 2
-	animals[INDEXPIG].health = 3
+	animals[INDEXPIG].experience = 10
+	animals[INDEXPIG].health = 1
 	animals[INDEXPIG].healthMax = animals[INDEXPIG].health
 	animals[INDEXPIG].money = 3
 	animals[INDEXPIG].name = "Pig"
@@ -147,8 +150,8 @@ function InitialiseGameVariables()
 	
 	animals[INDEXWOLF].defence = 2
 	animals[INDEXWOLF].offence = 2
-	animals[INDEXWOLF].experience = 3
-	animals[INDEXWOLF].health = 4
+	animals[INDEXWOLF].experience = 10
+	animals[INDEXWOLF].health = 1
 	animals[INDEXWOLF].healthMax = animals[INDEXWOLF].health
 	animals[INDEXWOLF].money = 5
 	animals[INDEXWOLF].name = "Wolf"
@@ -156,7 +159,7 @@ function InitialiseGameVariables()
 	
 	animals[INDEXBEAR].defence = 3
 	animals[INDEXBEAR].offence = 3
-	animals[INDEXBEAR].experience = 4
+	animals[INDEXBEAR].experience = 10
 	animals[INDEXBEAR].health = 6
 	animals[INDEXBEAR].healthMax = animals[INDEXBEAR].health
 	animals[INDEXBEAR].money = 6
@@ -184,6 +187,8 @@ function LoadResources()
 	
 	animalHealthBar.imgBar = humanHealthBar.imgBar
 	animalHealthBar.imgOverLay = humanHealthBar.imgOverLay
+	
+	fontID = LoadFont("font_GB2312.ttf")
 	
 endfunction
 
@@ -311,11 +316,8 @@ function combat(newBattle as integer)
 	if newBattle = 1
 		//** Init UI for animal
 		createCombatAnimal()
-		
 		//** Init UI for user input
 		createCombatUserInput()
-	//else
-		//UpdateCombatUserInput()
 	endif
 	
 	//** Wait for user input
@@ -326,24 +328,48 @@ function combat(newBattle as integer)
 	//** Generate animal output by Random(1,2):1 for feed human, 2 for ready to eat
 	//** then Calculate & update human and animal parameters
 	
+	sprAnimalText as integer
+	sprHumanText as integer
+	
+	sprAnimalText = CreateText("动物准备")
+	SetTextColor(sprAnimalText, 0x7f, 0x7f, 0x00, 0xEE)
+	SetTextFont(sprAnimalText, fontID)
+	SetTextAlignment(sprAnimalText, 1)
+	SetTextPosition(sprAnimalText, 50, 45)
+	
+	sprHumanText = CreateText(" ")
+	SetTextColor(sprHumanText, 0x7f, 0x7f, 0x3f, 0x7f)
+	SetTextFont(sprHumanText, fontID)
+	SetTextAlignment(sprHumanText, 1)
+	SetTextPosition(sprHumanText, 50, 60)
+	
+	
 	//animal going to feed human
 	if Random(1,2) = 1
 		Print("animal feed human")
 		Sync()	
-		Sleep(DEBUGDELAY * 5)	
+		SetTextString(sprAnimalText, "动物给你准备了食物")
+		Sleep(DEBUGDELAY * 5)
+
 		//** 
 		select buttonInput
 			case BUTTONID_FEED
+				SetTextString(sprAnimalText, "动物吃了"+Str(game.human.offence)+"个食物")
+				SetTextString(sprHumanText, "主角吃了"+Str(game.animal.offence)+"个食物")
+				
 				game.human.health = game.human.health - game.animal.offence
+				game.animal.health = game.animal.health - game.human.offence
+				
 				PrintC("human health update ")
 				Print(game.human.health)
-				game.animal.health = game.animal.health - game.human.offence
 				PrintC("animal health update ")
 				Print(game.animal.health)
 				Sync()
 				Sleep(DEBUGDELAY * 5)
 			endcase
 			case BUTTONID_PET
+				SetTextString(sprHumanText, "宠物来帮忙, 主角吃了"+Str(game.animal.offence - game.human.defence)+"个食物")
+				
 				game.human.health = game.human.health - (game.animal.offence - game.human.defence)
 				PrintC("human health update ")
 				Print(game.human.health)
@@ -351,6 +377,7 @@ function combat(newBattle as integer)
 				Sleep(DEBUGDELAY * 5)
 			endcase
 			case BUTTONID_LEAVE
+				SetTextString(sprHumanText, "主角吃了"+Str(game.animal.offence)+"个食物")
 				game.human.health = game.human.health - game.animal.offence
 				PrintC("human health update ")
 				Print(game.human.health)
@@ -362,10 +389,12 @@ function combat(newBattle as integer)
 	else
 		Print("animal ready to eat")
 		Sync()	
-		Sleep(DEBUGDELAY * 5)	
+		SetTextString(sprAnimalText, "动物准备好要吃了")	
+		Sleep(DEBUGDELAY * 5)
 		//** 
 		select buttonInput
 			case BUTTONID_FEED
+				SetTextString(sprAnimalText, "动物吃了"+Str(game.human.offence - game.animal.defence)+"个食物")
 				game.animal.health = game.animal.health - (game.human.offence - game.animal.defence)
 				PrintC("animal health update ")
 				Print(game.animal.health)
@@ -373,11 +402,14 @@ function combat(newBattle as integer)
 				Sleep(DEBUGDELAY * 5)
 			endcase
 			case BUTTONID_PET
+				SetTextString(sprAnimalText, "准备好了，但是吃了空气")
+				SetTextString(sprHumanText, "准备好了，但是吃了空气")
 				Print("combat but nothing happen")
 				Sync()
 				Sleep(DEBUGDELAY * 5)
 			endcase
 			case BUTTONID_LEAVE
+				SetTextString(sprHumanText, "主角离开了")
 				PrintC("human will leave")
 				Sync()
 				Sleep(DEBUGDELAY * 5)
@@ -385,6 +417,8 @@ function combat(newBattle as integer)
 			endcase
 		endselect
 	endif
+	DeleteText(sprAnimalText)
+	DeleteText(sprHumanText)
 	UpdateCombatUserInput()
 endfunction 1
 
@@ -491,50 +525,6 @@ function destoryCombatUserInput()
 	DestoryHealthBar(animalHealthBar)
 endfunction
 
-//function createCombatUserInput()
-	//AddVirtualButton(BUTTONID_FEED,20,70,20)
-	//SetVirtualButtonText(BUTTONID_FEED,"Feed")
-	
-	//AddVirtualButton(BUTTONID_PET,50,70,20)
-	//SetVirtualButtonText(BUTTONID_PET,"Use Pet")
-	
-	//AddVirtualButton(BUTTONID_LEAVE,80,70,20)
-	//SetVirtualButtonText(BUTTONID_LEAVE,"Leave")
-	
-	//Sync()
-	
-//endfunction
-
-//function getUserCombatInput()
-	//Print("getUserCombatInput")
-	//Sync()
-	//Sleep(DEBUGDELAY)
-	//do
-		//if GetVirtualButtonPressed(BUTTONID_FEED) 
-			//Print("FEED")
-			//Sync()
-			//Sleep(DEBUGDELAY)
-			//exitfunction BUTTONID_FEED
-		//elseif GetVirtualButtonPressed(BUTTONID_PET) 
-			//Print("USE PET")
-			//Sync()
-			//Sleep(DEBUGDELAY)
-			//exitfunction BUTTONID_PET
-		//elseif GetVirtualButtonPressed(BUTTONID_LEAVE) 
-			//Print("Leave")
-			//Sync()
-			//Sleep(DEBUGDELAY)
-			//exitfunction BUTTONID_LEAVE
-		//endif
-		//Print("loopingUserCombatInput")
-		//Sync()
-	//loop
-	//Print("getUserCombatInput end")
-	//Sync()
-	//Sleep(DEBUGDELAY)
-//endfunction 0
-
-
 function humanLose()
 	Print("Human Lose")
 	Sync()
@@ -565,11 +555,11 @@ endfunction
 
 function calculateHumanLevel()
 	if game.human.experience <= LEVEL2THRESHOLD
-		game.human.level = 2
-	elseif game.human.experience <= LEVEL3THRESHOLD
-		game.human.level = 3 
-	else
 		game.human.level = 1
+	elseif game.human.experience <= LEVEL3THRESHOLD
+		game.human.level = 2 
+	else
+		game.human.level = 3
 	endif
 	PrintC("Human level ")
 	Print(game.human.level)
