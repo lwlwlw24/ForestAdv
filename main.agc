@@ -2,12 +2,14 @@
 // Created: 2018-05-14
 
 #include "../Function Lib/CoreLibrary.agc"
+#include "../Function Lib/HealthBar.agc"
 
 //****** Data Types ******
 type HumanType
 	imgID as integer //Image used
 	sprID as integer //Sprite ID
 	health as float
+	healthMax as float
 	level as integer
 	experience as float
 	money as float
@@ -21,6 +23,7 @@ type AnimalType
 	sprID as integer //Sprite ID
 	name as string
 	health as float
+	healthMax as float
 	experience as float
 	money as float
 	offence as integer
@@ -41,6 +44,8 @@ endtype
 global game as GameType
 global dim animals[3] as AnimalType
 global dim button[3] as ButtonType
+global humanHealthBar as HealthBarType
+global animalHealthBar as HealthBarType
 //****** Named Constants ******
 //debugging use
 #constant DEBUGDELAY = 500
@@ -127,15 +132,15 @@ function InitialiseGameVariables()
 	game.human.offence = 2
 	game.human.experience = 0
 	game.human.money = 10
-	game.human.health = 10
+	game.human.healthMax = 10
+	game.human.health = game.human.healthMax
 	//test code end
-	
-
 	
 	animals[INDEXPIG].defence = 1
 	animals[INDEXPIG].offence = 1
 	animals[INDEXPIG].experience = 2
 	animals[INDEXPIG].health = 3
+	animals[INDEXPIG].healthMax = animals[INDEXPIG].health
 	animals[INDEXPIG].money = 3
 	animals[INDEXPIG].name = "Pig"
 
@@ -144,6 +149,7 @@ function InitialiseGameVariables()
 	animals[INDEXWOLF].offence = 2
 	animals[INDEXWOLF].experience = 3
 	animals[INDEXWOLF].health = 4
+	animals[INDEXWOLF].healthMax = animals[INDEXWOLF].health
 	animals[INDEXWOLF].money = 5
 	animals[INDEXWOLF].name = "Wolf"
 
@@ -152,9 +158,12 @@ function InitialiseGameVariables()
 	animals[INDEXBEAR].offence = 3
 	animals[INDEXBEAR].experience = 4
 	animals[INDEXBEAR].health = 6
+	animals[INDEXBEAR].healthMax = animals[INDEXBEAR].health
 	animals[INDEXBEAR].money = 6
 	animals[INDEXBEAR].name = "Bear"
+	
 
+	
 endfunction
 	
 	
@@ -170,6 +179,11 @@ function LoadResources()
 	button[BUTTONID_PET].imgIDUnpressed = LoadImage("buttonUsePet.png")
 	button[BUTTONID_LEAVE].imgIDUnpressed = LoadImage("buttonLeave.png")
 	
+	humanHealthBar.imgBar = LoadImage("HealthBar.png")
+	humanHealthBar.imgOverLay = LoadImage("HealthBarOverLay.png")
+	
+	animalHealthBar.imgBar = humanHealthBar.imgBar
+	animalHealthBar.imgOverLay = humanHealthBar.imgOverLay
 	
 endfunction
 
@@ -237,7 +251,7 @@ function meetAnimal()
 	PrintC("You will meet ")
 	Print(game.animal.name)
 	Sync()
-	Sleep(DEBUGDELAY * 5)
+	Sleep(DEBUGDELAY)
 	
 	//assign the animal to game.animal
 	//test code
@@ -260,6 +274,7 @@ function battle()
 	Sleep(DEBUGDELAY)
 	
 	combatResult as integer
+	newBattleFlag as integer = 1
 	
 	//** battle main loop 
 	//** test data
@@ -269,7 +284,8 @@ function battle()
 	//*** test data end
 
 	repeat
-		combatResult = combat()
+		combatResult = combat(newBattleFlag)
+		newBattleFlag = 0
 		if combatResult = -1
 			exit
 		endif
@@ -287,16 +303,20 @@ function battle()
 	
 endfunction
 
-function combat()
+function combat(newBattle as integer)
 	Print("combat")
 	Sync()
 	Sleep(DEBUGDELAY)
 	
-	//** Init UI for animal
-	createCombatAnimal()
-	
-	//** Init UI for user input
-	createCombatUserInput()
+	if newBattle = 1
+		//** Init UI for animal
+		createCombatAnimal()
+		
+		//** Init UI for user input
+		createCombatUserInput()
+	//else
+		//UpdateCombatUserInput()
+	endif
 	
 	//** Wait for user input
 	buttonInput = getUserCombatInput()
@@ -365,13 +385,22 @@ function combat()
 			endcase
 		endselect
 	endif
-	
+	UpdateCombatUserInput()
 endfunction 1
 
 function createCombatAnimal()
 	game.animal.sprID = CreateSprite(game.animal.imgID)
 	SetSpriteSize(game.animal.sprID, 50, -1)
-	SetSpritePosition(game.animal.sprID, 25, 10)
+	SetSpritePosition(game.animal.sprID, 25, 15)
+	
+	animalHealthBar.sizeX = 50
+	animalHealthBar.sizeY = -1
+	animalHealthBar.positionX = 25
+	animalHealthBar.positionY = 5
+	animalHealthBar.healthMax = game.animal.healthMax
+	animalHealthBar.percentage = game.animal.health / game.animal.healthMax
+	CreateHealthBar(animalHealthBar)
+	
 	
 endfunction
 
@@ -390,6 +419,30 @@ function createCombatUserInput()
 	SetSpriteSize(button[BUTTONID_LEAVE].sprID, 10, -1)
 	SetSpritePosition(button[BUTTONID_LEAVE].sprID, 65, 70)
 	
+	humanHealthBar.sizeX = 50
+	humanHealthBar.sizeY = -1
+	humanHealthBar.positionX = 25
+	humanHealthBar.positionY = 85
+	humanHealthBar.healthMax = game.human.healthMax
+	humanHealthBar.percentage = game.human.health / game.human.healthMax
+	CreateHealthBar(humanHealthBar)
+	
+endfunction
+
+function UpdateCombatUserInput()
+	if game.human.health > 0
+		humanHealthBar.percentage = game.human.health / game.human.healthMax
+	else
+		humanHealthBar.percentage = 0
+	endif
+	UpdateHealthBar(humanHealthBar)
+	if game.animal.health > 0
+		animalHealthBar.percentage = game.animal.health / game.animal.healthMax
+	else
+		animalHealthBar.percentage = 0
+	endif
+	UpdateHealthBar(animalHealthBar)
+	
 endfunction
 
 function getUserCombatInput()
@@ -401,33 +454,42 @@ function getUserCombatInput()
 	do
 		Print("loopingUserCombatInput")
 		Sync()
-		sprHit = GetSpriteHit(GetPointerX(), GetPointerY())
-		select sprHit
-			case button[BUTTONID_FEED].sprID
-				Print("FEED")
-				Sync()
-				Sleep(DEBUGDELAY)
-				exitfunction BUTTONID_FEED
-			endcase
-			case button[BUTTONID_PET].sprID
-				Print("USE PET")
-				Sync()
-				Sleep(DEBUGDELAY)
-				exitfunction BUTTONID_PET
-			endcase
-			case button[BUTTONID_LEAVE].sprID
-				Print("Leave")
-				Sync()
-				Sleep(DEBUGDELAY)
-				exitfunction BUTTONID_LEAVE
-			endcase
-		endselect
+		if GetPointerPressed() = 1
+			sprHit = GetSpriteHit(GetPointerX(), GetPointerY())
+			select sprHit
+				case button[BUTTONID_FEED].sprID
+					Print("FEED")
+					Sync()
+					Sleep(DEBUGDELAY)
+					exitfunction BUTTONID_FEED
+				endcase
+				case button[BUTTONID_PET].sprID
+					Print("USE PET")
+					Sync()
+					Sleep(DEBUGDELAY)
+					exitfunction BUTTONID_PET
+				endcase
+				case button[BUTTONID_LEAVE].sprID
+					Print("Leave")
+					Sync()
+					Sleep(DEBUGDELAY)
+					exitfunction BUTTONID_LEAVE
+				endcase
+			endselect
+		endif
 	loop
 	Print("getUserCombatInput end")
 	Sync()
 	Sleep(DEBUGDELAY)
 endfunction 0
 
+function destoryCombatUserInput()
+	DeleteSprite(game.animal.sprID)
+	DeleteSprite(button[BUTTONID_FEED].sprID)
+	DeleteSprite(button[BUTTONID_PET].sprID)
+	DeleteSprite(button[BUTTONID_LEAVE].sprID)
+	DestoryHealthBar(animalHealthBar)
+endfunction
 
 //function createCombatUserInput()
 	//AddVirtualButton(BUTTONID_FEED,20,70,20)
@@ -495,10 +557,7 @@ function humanWin(in as integer)
 		Print("Human leave")
 	endif
 	
-	DeleteSprite(game.animal.sprID)
-	DeleteSprite(button[BUTTONID_FEED].sprID)
-	DeleteSprite(button[BUTTONID_PET].sprID)
-	DeleteSprite(button[BUTTONID_LEAVE].sprID)
+	destoryCombatUserInput()
 	
 	Sync()
 	Sleep(DEBUGDELAY)
